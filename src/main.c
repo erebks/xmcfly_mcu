@@ -47,7 +47,10 @@
 
 int main (void)
 {
-
+	initRetargetSwo();
+	printf("Hello World\n");
+	
+	for(;;);
 }
 
 /* EOF */
