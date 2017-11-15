@@ -1,2 +1,12 @@
 Debug/
 bin/
+
+#Temporary compile files
+*.o
+*.d
+*.su
+
+#ECLIPSE config files
+.cproject
+.project
+.settings
