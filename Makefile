@@ -10,7 +10,7 @@
 ################################################################################
 # define the name of the generated output file
 #
-TARGET        = main
+TARGET        = xmcfly
 
 ################################################################################
 # below only edit with care
