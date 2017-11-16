@@ -98,6 +98,9 @@
 #define I2C_MST_CTRL_ADR	0x24
 #define I2C_MST_CTRL_DATA	0x0D
 
+#define PWR_MGMT_1_ADR 	0x6B
+#define PWR_MGMT_1_DATA	0x00
+
 #define SDA_PIN P1_5
 #define SCL_PIN P1_1
 
@@ -277,6 +280,15 @@ int main(void)
 	i2c_stop(XMC_I2C0_CH0);
 
 	printf("[I2C] Interrupt Config done\n");
+
+	i2c_start(XMC_I2C0_CH0, MPU6050_ADR, XMC_I2C_CH_CMD_WRITE);
+
+	i2c_sendbyte(XMC_I2C0_CH0, PWR_MGMT_1_ADR);
+	i2c_sendbyte(XMC_I2C0_CH0, PWR_MGMT_1_DATA);
+
+	i2c_stop(XMC_I2C0_CH0);
+
+	printf("[I2C] Sleep mode disabled\n");
 
 	while(1)
 	{
