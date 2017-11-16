@@ -46,6 +46,7 @@
 #include <debug_lib.h>
 #include <xmc_gpio.h>
 #include <xmc_i2c.h>
+#include <xmc_usic.h>
 #include <GPIO.h>
 
 //ADR1: AD0 level low
@@ -57,10 +58,13 @@
 #define MPU6050_READ MPU6050_ADR & (0x00)
 #define MPU6050_WRITE MPU6050_ADR & (0x01)
 
-//Config for Gyroscope Fullscale +/-2000°/s
+#define CONFIG_ADR 	0x1A
+#define CONFIG_DATA 0x03
+
+//Config for Gyroscope Fullscale +/-250°/s
 #define GYRO_CONFIG_ADR 	0x1B
-#define GYRO_CONFIG_DATA 	0x18
-//#define GYRO_CONFIG_DATA 	0x00
+//#define GYRO_CONFIG_DATA 	0x18
+#define GYRO_CONFIG_DATA 	0x00
 
 //Gyroscope Data Registers
 #define GYRO_DATA_X_HIGH 	0x43
@@ -70,10 +74,10 @@
 #define GYRO_DATA_Z_HIGH 	0x47
 #define GYRO_DATA_Z_LOW 	0x48
 
-//Config for Accelerometer Fullscale +/-16g
+//Config for Accelerometer Fullscale +/-2g
 #define ACCEL_CONFIG_ADR 	0x1C
-#define ACCEL_CONFIG_DATA 	0x18
-//#define ACCEL_CONFIG_DATA 	0x00
+//#define ACCEL_CONFIG_DATA 	0x18
+#define ACCEL_CONFIG_DATA 	0x00
 
 //Accelerometer Data Registers
 #define ACCEL_DATA_X_HIGH 	0x3B
@@ -116,24 +120,45 @@ struct MPU6050_DATA
 	uint8_t gyro_z_h;
 	uint8_t gyro_z_l;
 
+	int16_t gyro_x;
+	int16_t gyro_y;
+	int16_t gyro_z;
+
+	float gyro_x_out;
+	float gyro_y_out;
+	float gyro_z_out;
+	float gyro_x_out_off;
+	float gyro_y_out_off;
+	float gyro_z_out_off;
+
 	uint8_t accel_x_h;
 	uint8_t accel_x_l;
 	uint8_t accel_y_h;
 	uint8_t accel_y_l;
 	uint8_t accel_z_h;
 	uint8_t accel_z_l;
+
+	int16_t accel_x;
+	int16_t accel_y;
+	int16_t accel_z;
+
+	float accel_x_out;
+	float accel_y_out;
+	float accel_z_out;
+
+
 };
 
 XMC_GPIO_CONFIG_t i2c_sda =
 {
   .mode = XMC_GPIO_MODE_OUTPUT_OPEN_DRAIN_ALT2,
-  .output_strength = XMC_GPIO_OUTPUT_STRENGTH_MEDIUM
+  .output_strength = XMC_GPIO_OUTPUT_STRENGTH_STRONG_MEDIUM_EDGE
 };
 
 XMC_GPIO_CONFIG_t i2c_scl =
 {
   .mode = XMC_GPIO_MODE_OUTPUT_OPEN_DRAIN_ALT2,
-  .output_strength = XMC_GPIO_OUTPUT_STRENGTH_MEDIUM
+  .output_strength = XMC_GPIO_OUTPUT_STRENGTH_STRONG_MEDIUM_EDGE
 };
 
 XMC_GPIO_CONFIG_t p1_2_conf =
@@ -215,13 +240,13 @@ uint8_t i2c_readbyte(XMC_USIC_CH_t *const channel)
 uint8_t i2c_stop(XMC_USIC_CH_t *const channel)
 {
 	XMC_I2C_CH_MasterStop(channel);
+	XMC_I2C_CH_ClearStatusFlag(channel, XMC_I2C_CH_STATUS_FLAG_ACK_RECEIVED);
 	return 0;
 }
 
 int main(void)
 {
-	uint8_t counter = 0;
-	uint8_t recv_data = 0;
+	uint8_t recv_data;
 	struct MPU6050_DATA Data1;
 
 	initRetargetSwo();
@@ -239,7 +264,23 @@ int main(void)
 	XMC_GPIO_Init(P1_2, &p1_2_conf);
 
 	printf("[I2C] Init done\n");
-	delay_10us(10000);
+
+	i2c_start(XMC_I2C0_CH0, MPU6050_ADR, XMC_I2C_CH_CMD_WRITE);
+
+	i2c_sendbyte(XMC_I2C0_CH0, PWR_MGMT_1_ADR);
+	i2c_sendbyte(XMC_I2C0_CH0, PWR_MGMT_1_DATA);
+
+	i2c_stop(XMC_I2C0_CH0);
+
+	printf("[I2C] Sleep mode disabled\n");
+	delay_10us(10);
+
+	i2c_start(XMC_I2C0_CH0, MPU6050_ADR, XMC_I2C_CH_CMD_WRITE);
+
+	i2c_sendbyte(XMC_I2C0_CH0, CONFIG_ADR);
+	i2c_sendbyte(XMC_I2C0_CH0, CONFIG_DATA);
+
+	i2c_stop(XMC_I2C0_CH0);
 
 	i2c_start(XMC_I2C0_CH0, MPU6050_ADR, XMC_I2C_CH_CMD_WRITE);
 
@@ -256,7 +297,7 @@ int main(void)
 	i2c_stop(XMC_I2C0_CH0);
 
 	printf("[I2C] FIFO cleared and enabled\n");
-	delay_10us(10000);
+	delay_10us(10);
 
 	i2c_start(XMC_I2C0_CH0, MPU6050_ADR, XMC_I2C_CH_CMD_WRITE);
 
@@ -266,7 +307,7 @@ int main(void)
 	i2c_stop(XMC_I2C0_CH0);
 
 	printf("[I2C] Gyro Config done\n");
-	delay_10us(10000);
+	delay_10us(10);
 
 	i2c_start(XMC_I2C0_CH0, MPU6050_ADR, XMC_I2C_CH_CMD_WRITE);
 
@@ -276,7 +317,7 @@ int main(void)
 	i2c_stop(XMC_I2C0_CH0);
 
 	printf("[I2C] Accel Config done\n");
-	delay_10us(10000);
+	delay_10us(10);
 
 	i2c_start(XMC_I2C0_CH0, MPU6050_ADR, XMC_I2C_CH_CMD_WRITE);
 
@@ -286,30 +327,20 @@ int main(void)
 	i2c_stop(XMC_I2C0_CH0);
 
 	printf("[I2C] Interrupt Config done\n");
-	delay_10us(10000);
-
-	i2c_start(XMC_I2C0_CH0, MPU6050_ADR, XMC_I2C_CH_CMD_WRITE);
-
-	i2c_sendbyte(XMC_I2C0_CH0, PWR_MGMT_1_ADR);
-	i2c_sendbyte(XMC_I2C0_CH0, PWR_MGMT_1_DATA);
-
-	i2c_stop(XMC_I2C0_CH0);
-
-	printf("[I2C] Sleep mode disabled\n");
-	delay_10us(10000);
+	delay_10us(10);
 
 	while(1)
 	{
-	/*	i2c_start(XMC_I2C0_CH0, MPU6050_ADR, XMC_I2C_CH_CMD_WRITE);
+		/*i2c_start(XMC_I2C0_CH0, MPU6050_ADR, XMC_I2C_CH_CMD_WRITE);
 		i2c_sendbyte(XMC_I2C0_CH0, INT_STATUS_ADR);
 		i2c_stop(XMC_I2C0_CH0);
 
 		i2c_start(XMC_I2C0_CH0, MPU6050_ADR, XMC_I2C_CH_CMD_READ);
 		recv_data=i2c_readbyte(XMC_I2C0_CH0);
 		i2c_sendNACK(XMC_I2C0_CH0);
-		i2c_stop(XMC_I2C0_CH0);
+		i2c_stop(XMC_I2C0_CH0);*/
 
-		if((recv_data & 0x01)==0x01)*/
+		//if((recv_data & 0x01)==0x01)
 		if((PORT1->IN & 0x04)==0x04)
 		{
 			i2c_start(XMC_I2C0_CH0, MPU6050_ADR, XMC_I2C_CH_CMD_WRITE);
@@ -318,9 +349,16 @@ int main(void)
 
 			i2c_start(XMC_I2C0_CH0, MPU6050_ADR, XMC_I2C_CH_CMD_READ);
 
-			Data1.gyro_x_h=i2c_readbyte(XMC_I2C0_CH0);
+			i2c_readbyte(XMC_I2C0_CH0);
 			i2c_sendACK(XMC_I2C0_CH0);
-			Data1.gyro_x_l=i2c_readbyte(XMC_I2C0_CH0);
+			i2c_readbyte(XMC_I2C0_CH0);
+			i2c_sendACK(XMC_I2C0_CH0);
+			i2c_readbyte(XMC_I2C0_CH0);
+			i2c_sendACK(XMC_I2C0_CH0);
+
+			Data1.gyro_x_h = i2c_readbyte(XMC_I2C0_CH0);
+			i2c_sendACK(XMC_I2C0_CH0);
+			Data1.gyro_x_l = i2c_readbyte(XMC_I2C0_CH0);
 			i2c_sendACK(XMC_I2C0_CH0);
 			Data1.gyro_y_h=i2c_readbyte(XMC_I2C0_CH0);
 			i2c_sendACK(XMC_I2C0_CH0);
@@ -333,16 +371,49 @@ int main(void)
 
 			i2c_stop(XMC_I2C0_CH0);
 
+			Data1.gyro_x = (Data1.gyro_x_h << 8) + (Data1.gyro_x_l);
+			Data1.gyro_y = (Data1.gyro_y_h << 8) + (Data1.gyro_y_l);
+			Data1.gyro_z = (Data1.gyro_z_h << 8) + (Data1.gyro_z_l);
+
+			if((Data1.gyro_x & 0x8000) == 0x8000)
+			{
+				Data1.gyro_x--;
+				Data1.gyro_x = ~Data1.gyro_x;
+				Data1.gyro_x = 0-Data1.gyro_x;
+			}
+
+			if((Data1.gyro_y & 0x8000) == 0x8000)
+			{
+				Data1.gyro_y--;
+				Data1.gyro_y = ~Data1.gyro_y;
+				Data1.gyro_y = 0-Data1.gyro_y;
+			}
+
+			if((Data1.gyro_z & 0x8000) == 0x8000)
+			{
+				Data1.gyro_z--;
+				Data1.gyro_z = ~Data1.gyro_z;
+				Data1.gyro_z = 0-Data1.gyro_z;
+			}
+
+			Data1.gyro_x_out = 250 * Data1.gyro_x;
+			Data1.gyro_x_out/= 32767;
+			Data1.gyro_y_out = 250 * Data1.gyro_y;
+			Data1.gyro_y_out/= 32767;
+			Data1.gyro_z_out = 250 * Data1.gyro_z;
+			Data1.gyro_z_out/= 32767;
+
 			printf("[I2C] Gyro data read\n");
 
-			printf("%x\n", Data1.gyro_x_h);
-			printf("%x\n", Data1.gyro_x_l);
-			printf("%x\n", Data1.gyro_y_h);
-			printf("%x\n", Data1.gyro_y_l);
-			printf("%x\n", Data1.gyro_z_h);
-			printf("%x\n\n", Data1.gyro_z_l);
-
-			delay_10us(1);
+			printf("GYRO_X: %f°/s\n", Data1.gyro_x_out);
+			printf("GYRO_Y: %f°/s\n", Data1.gyro_y_out);
+			printf("GYRO_Z: %f°/s\n", Data1.gyro_z_out);
+			/*
+			printf("GYRO_X: %d\n", Data1.gyro_x);
+			printf("GYRO_Y: %d\n", Data1.gyro_y);
+			printf("GYRO_Z: %d\n", Data1.gyro_z);
+			*/
+			delay_10us(10);
 
 
 			i2c_start(XMC_I2C0_CH0, MPU6050_ADR, XMC_I2C_CH_CMD_WRITE);
@@ -350,6 +421,13 @@ int main(void)
 			i2c_stop(XMC_I2C0_CH0);
 
 			i2c_start(XMC_I2C0_CH0, MPU6050_ADR, XMC_I2C_CH_CMD_READ);
+
+			i2c_readbyte(XMC_I2C0_CH0);
+			i2c_sendACK(XMC_I2C0_CH0);
+			i2c_readbyte(XMC_I2C0_CH0);
+			i2c_sendACK(XMC_I2C0_CH0);
+			i2c_readbyte(XMC_I2C0_CH0);
+			i2c_sendACK(XMC_I2C0_CH0);
 
 			Data1.accel_x_h=i2c_readbyte(XMC_I2C0_CH0);
 			i2c_sendACK(XMC_I2C0_CH0);
@@ -366,17 +444,51 @@ int main(void)
 
 			i2c_stop(XMC_I2C0_CH0);
 
+			Data1.accel_x = (Data1.accel_x_h << 8) + (Data1.accel_x_l);
+			Data1.accel_y = (Data1.accel_y_h << 8) + (Data1.accel_y_l);
+			Data1.accel_z = (Data1.accel_z_h << 8) + (Data1.accel_z_l);
+
+			if((Data1.accel_x & 0x8000) == 0x8000)
+			{
+				Data1.accel_x--;
+				Data1.accel_x = ~Data1.accel_x;
+				Data1.accel_x = 0-Data1.accel_x;
+			}
+
+			if((Data1.accel_y & 0x8000) == 0x8000)
+			{
+				Data1.accel_y--;
+				Data1.accel_y = ~Data1.accel_y;
+				Data1.accel_y = 0-Data1.accel_y;
+			}
+
+			if((Data1.accel_z & 0x8000) == 0x8000)
+			{
+				Data1.accel_z--;
+				Data1.accel_z = ~Data1.accel_z;
+				Data1.accel_z = 0-Data1.accel_z;
+			}
+
+			Data1.accel_x_out = 2 * Data1.accel_x;
+			Data1.accel_x_out/= 32767;
+			Data1.accel_y_out = 2 * Data1.accel_y;
+			Data1.accel_y_out/= 32767;
+			Data1.accel_z_out = 2 * Data1.accel_z;
+			Data1.accel_z_out/= 32767;
+
 			printf("[I2C] Accel data read\n");
 
-			printf("%x\n", Data1.accel_x_h);
-			printf("%x\n", Data1.accel_x_l);
-			printf("%x\n", Data1.accel_y_h);
-			printf("%x\n", Data1.accel_y_l);
-			printf("%x\n", Data1.accel_z_h);
-			printf("%x\n\n", Data1.accel_z_l);
-			delay_10us(1);
+			printf("ACCEL_X: %fg\n", Data1.accel_x_out);
+			printf("ACCEL_Y: %fg\n", Data1.accel_y_out);
+			printf("ACCEL_Z: %fg\n", Data1.accel_z_out);
+			/*
+			printf("ACCEL_X: %d\n", Data1.accel_x);
+			printf("ACCEL_Y: %d\n", Data1.accel_y);
+			printf("ACCEL_Z: %d\n", Data1.accel_z);
+			*/
+			delay_10us(10);
 		}
-		delay_10us(1);
+		delay_10us(100000);
 
 	}
 }
