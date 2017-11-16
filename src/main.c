@@ -147,7 +147,8 @@ XMC_I2C_CH_CONFIG_t i2c_cfg =
   .baudrate = 100000U,
 };
 
-void delay(uint32_t counter);
+void delay(uint32_t i);
+void delay_10us(uint32_t i);
 
 uint8_t i2c_start(XMC_USIC_CH_t *const channel, uint8_t adress, XMC_I2C_CH_CMD_t command);
 uint8_t i2c_repstart(XMC_USIC_CH_t *const channel, uint8_t adress, XMC_I2C_CH_CMD_t command);
@@ -225,8 +226,9 @@ int main(void)
 
 	initRetargetSwo();
 	printf("Hello World\n");
+	delay_10us(10000);
+	printf("Hello World after delay\n");
 	
-
 	XMC_I2C_CH_Init(XMC_I2C0_CH0, &i2c_cfg);
 	XMC_I2C_CH_SetInputSource(XMC_I2C0_CH0, XMC_I2C_CH_INPUT_SDA, USIC0_C0_DX0_P1_5);
 	XMC_I2C_CH_SetInputSource(XMC_I2C0_CH0, XMC_I2C_CH_INPUT_SCL, USIC0_C0_DX1_P1_1);
@@ -237,6 +239,7 @@ int main(void)
 	XMC_GPIO_Init(P1_2, &p1_2_conf);
 
 	printf("[I2C] Init done\n");
+	delay_10us(10000);
 
 	i2c_start(XMC_I2C0_CH0, MPU6050_ADR, XMC_I2C_CH_CMD_WRITE);
 
@@ -253,6 +256,7 @@ int main(void)
 	i2c_stop(XMC_I2C0_CH0);
 
 	printf("[I2C] FIFO cleared and enabled\n");
+	delay_10us(10000);
 
 	i2c_start(XMC_I2C0_CH0, MPU6050_ADR, XMC_I2C_CH_CMD_WRITE);
 
@@ -262,6 +266,7 @@ int main(void)
 	i2c_stop(XMC_I2C0_CH0);
 
 	printf("[I2C] Gyro Config done\n");
+	delay_10us(10000);
 
 	i2c_start(XMC_I2C0_CH0, MPU6050_ADR, XMC_I2C_CH_CMD_WRITE);
 
@@ -271,6 +276,7 @@ int main(void)
 	i2c_stop(XMC_I2C0_CH0);
 
 	printf("[I2C] Accel Config done\n");
+	delay_10us(10000);
 
 	i2c_start(XMC_I2C0_CH0, MPU6050_ADR, XMC_I2C_CH_CMD_WRITE);
 
@@ -280,6 +286,7 @@ int main(void)
 	i2c_stop(XMC_I2C0_CH0);
 
 	printf("[I2C] Interrupt Config done\n");
+	delay_10us(10000);
 
 	i2c_start(XMC_I2C0_CH0, MPU6050_ADR, XMC_I2C_CH_CMD_WRITE);
 
@@ -289,10 +296,11 @@ int main(void)
 	i2c_stop(XMC_I2C0_CH0);
 
 	printf("[I2C] Sleep mode disabled\n");
+	delay_10us(10000);
 
 	while(1)
 	{
-		i2c_start(XMC_I2C0_CH0, MPU6050_ADR, XMC_I2C_CH_CMD_WRITE);
+	/*	i2c_start(XMC_I2C0_CH0, MPU6050_ADR, XMC_I2C_CH_CMD_WRITE);
 		i2c_sendbyte(XMC_I2C0_CH0, INT_STATUS_ADR);
 		i2c_stop(XMC_I2C0_CH0);
 
@@ -301,7 +309,8 @@ int main(void)
 		i2c_sendNACK(XMC_I2C0_CH0);
 		i2c_stop(XMC_I2C0_CH0);
 
-		if((recv_data & 0x01)==0x01)
+		if((recv_data & 0x01)==0x01)*/
+		if((PORT1->IN & 0x04)==0x04)
 		{
 			i2c_start(XMC_I2C0_CH0, MPU6050_ADR, XMC_I2C_CH_CMD_WRITE);
 			i2c_sendbyte(XMC_I2C0_CH0, GYRO_DATA_X_HIGH);
@@ -333,6 +342,8 @@ int main(void)
 			printf("%x\n", Data1.gyro_z_h);
 			printf("%x\n\n", Data1.gyro_z_l);
 
+			delay_10us(1);
+
 
 			i2c_start(XMC_I2C0_CH0, MPU6050_ADR, XMC_I2C_CH_CMD_WRITE);
 			i2c_sendbyte(XMC_I2C0_CH0, ACCEL_DATA_X_HIGH);
@@ -343,21 +354,11 @@ int main(void)
 			Data1.accel_x_h=i2c_readbyte(XMC_I2C0_CH0);
 			i2c_sendACK(XMC_I2C0_CH0);
 			Data1.accel_x_l=i2c_readbyte(XMC_I2C0_CH0);
-			i2c_sendNACK(XMC_I2C0_CH0);
-
-			i2c_stop(XMC_I2C0_CH0);
-
-			i2c_start(XMC_I2C0_CH0, MPU6050_ADR, XMC_I2C_CH_CMD_READ);
-
+			i2c_sendACK(XMC_I2C0_CH0);
 			Data1.accel_y_h=i2c_readbyte(XMC_I2C0_CH0);
 			i2c_sendACK(XMC_I2C0_CH0);
 			Data1.accel_y_l=i2c_readbyte(XMC_I2C0_CH0);
-			i2c_sendNACK(XMC_I2C0_CH0);
-
-			i2c_stop(XMC_I2C0_CH0);
-
-			i2c_start(XMC_I2C0_CH0, MPU6050_ADR, XMC_I2C_CH_CMD_READ);
-
+			i2c_sendACK(XMC_I2C0_CH0);
 			Data1.accel_z_h=i2c_readbyte(XMC_I2C0_CH0);
 			i2c_sendACK(XMC_I2C0_CH0);
 			Data1.accel_z_l=i2c_readbyte(XMC_I2C0_CH0);
@@ -373,16 +374,30 @@ int main(void)
 			printf("%x\n", Data1.accel_y_l);
 			printf("%x\n", Data1.accel_z_h);
 			printf("%x\n\n", Data1.accel_z_l);
+			delay_10us(1);
 		}
-		delay(3000);
+		delay_10us(1);
+
 	}
 }
 
 
-void delay(uint32_t counter)
+//ca. 58 ns / Durchlauf
+void delay(uint32_t i)
 {
-	volatile uint32_t cnt = counter;
-	while(--cnt);
+	while(i--)
+	{
+		__NOP();
+	}
+}
+
+//ca. 58 ns / Durchlauf -> * 173 -> 10.03us
+void delay_10us(uint32_t i)
+{
+	while(i--)
+	{
+		delay(173);
+	}
 }
 
 /* EOF */
